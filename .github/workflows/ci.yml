@@ -202,6 +202,27 @@ jobs:
               " 2>/dev/null || echo "Coverage summary not available"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+  memory-regression:
+    # Runs the streaming-upload memory regression test (issue #1527) in CI so
+    # that a regression back to full-body buffering (which would OOM serverless
+    # functions on 100 MB+ highlight videos) fails the build immediately.
+    # NODE_OPTIONS=--expose-gc lets the test harness force a GC at each sample
+    # so it measures the *live* set instead of uncollected garbage, enabling
+    # the strict 64 MB budget (vs the 256 MB smoke-bound used without GC).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Streaming-upload memory regression (100 MB, < 64 MB peak)
+        run: npm run test:memory
+
   indexer:
     runs-on: ubuntu-latest
     steps:
